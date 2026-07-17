@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>パパチェッカー</title>
+<style>
+  :root{
+    --main:#3B82F6;
+    --main-dark:#2563EB;
+    --accent:#FF9F43;
+    --bg:#F3F6FB;
+    --card:#ffffff;
+    --text:#26313f;
+    --sub:#8a94a3;
+    --border:#e6eaf1;
+    --ok:#22C55E;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;background:var(--bg);color:var(--text);}
+  #app{max-width:480px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--bg);position:relative;overflow:hidden;}
+
+  header{background:linear-gradient(135deg,var(--main),var(--main-dark));color:#fff;padding:14px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  header #backBtn{border:none;background:rgba(255,255,255,.2);color:#fff;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;}
+  header h1{margin:0;font-size:17px;font-weight:800;flex:1;letter-spacing:.02em;}
+  .headerBtns{display:flex;gap:6px;flex-shrink:0;}
+  .headerBtns button{border:none;background:rgba(255,255,255,.2);color:#fff;padding:8px 12px;border-radius:14px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .headerBtns button.on{background:#fff;color:var(--main-dark);}
+
+  .view{flex:1;overflow-y:auto;display:none;-webkit-overflow-scrolling:touch;padding:18px 16px 30px;}
+  .view.active{display:block;}
+
+  /* -------- Home -------- */
+  .progressCard{background:var(--card);border-radius:20px;padding:24px 20px;text-align:center;box-shadow:0 2px 10px rgba(30,60,110,.06);margin-bottom:18px;}
+  .progressCard .ring{width:140px;height:140px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;background:conic-gradient(var(--main) calc(var(--pct,0)*1%), #e9edf5 0);}
+  .progressCard .ringInner{width:112px;height:112px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .progressCard .ringInner .num{font-size:28px;font-weight:800;color:var(--main-dark);}
+  .progressCard .ringInner .frac{font-size:12px;color:var(--sub);margin-top:2px;}
+  .progressCard .label{font-size:14px;color:var(--sub);font-weight:600;}
+  .listTitle{font-size:13px;color:var(--sub);font-weight:700;margin:4px 2px 10px;}
+  .itemRow{background:var(--card);border-radius:16px;padding:13px 15px;display:flex;align-items:center;gap:12px;margin-bottom:9px;box-shadow:0 1px 4px rgba(30,60,110,.05);}
+  .itemRow .mark{font-size:24px;width:36px;text-align:center;flex-shrink:0;opacity:.35;}
+  .itemRow.done .mark{opacity:1;}
+  .itemRow .iname{flex:1;font-size:14.5px;font-weight:600;}
+  .itemRow .stateTxt{font-size:11.5px;font-weight:700;color:var(--sub);}
+  .itemRow.done .stateTxt{color:var(--ok);}
+  .emptyNote{text-align:center;color:var(--sub);font-size:13px;padding:30px 0;}
+
+  /* -------- Kid view -------- */
+  .holdCard{position:relative;background:var(--card);border-radius:18px;padding:16px;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 8px rgba(30,60,110,.06);user-select:none;-webkit-user-select:none;}
+  .holdCard .fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#DBEAFE,#BFDBFE);z-index:0;transition:width .05s linear;}
+  .holdCard.done .fill{background:linear-gradient(90deg,#DCFCE7,#BBF7D0);}
+  .holdCard .row{position:relative;z-index:1;display:flex;align-items:center;gap:12px;}
+  .holdCard .mark{font-size:30px;width:40px;text-align:center;flex-shrink:0;}
+  .holdCard .info{flex:1;}
+  .holdCard .iname{font-size:15.5px;font-weight:700;}
+  .holdCard .hint{font-size:11px;color:var(--sub);margin-top:2px;}
+  .holdCard.done .hint{color:var(--ok);font-weight:700;}
+  .holdCard .checkBadge{font-size:20px;flex-shrink:0;opacity:.25;}
+  .holdCard.done .checkBadge{opacity:1;}
+  .kidTopNote{background:#FFF4E5;color:#9A5B00;font-size:12.5px;padding:10px 13px;border-radius:12px;margin-bottom:14px;text-align:center;}
+
+  /* -------- Admin -------- */
+  #adminLoginBox{display:flex;flex-direction:column;align-items:center;padding:50px 10px;}
+  #adminLoginBox .lockIcon{font-size:44px;margin-bottom:10px;}
+  #adminLoginBox p{font-size:13px;color:var(--sub);margin:0 0 20px;}
+  #adminLoginBox input{width:100%;max-width:220px;text-align:center;letter-spacing:.3em;font-size:20px;padding:13px;border-radius:14px;border:1px solid var(--border);margin-bottom:12px;background:#fff;}
+  #adminLoginBox input:focus{outline:2px solid var(--main);}
+  #adminLoginBox button{padding:12px 30px;border:none;border-radius:14px;background:var(--main);color:#fff;font-weight:700;font-size:14px;cursor:pointer;}
+  #adminLoginError{color:#e2453c;font-size:12px;margin-top:8px;height:14px;}
+
+  .adminSection{background:var(--card);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(30,60,110,.05);}
+  .adminSection h3{margin:0 0 12px;font-size:14px;color:#3a4a5c;}
+  .formRow{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+  .formRow label{font-size:11.5px;color:var(--sub);font-weight:700;}
+  .formRow input{padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:14px;background:#fafbfd;}
+  .formRow input:focus{outline:none;border-color:var(--main);}
+  .formGrid{display:flex;gap:10px;}
+  .formGrid .formRow{flex:1;}
+  .adminSection > button.primary{width:100%;padding:12px;border:none;border-radius:12px;background:var(--main);color:#fff;font-weight:700;font-size:14px;cursor:pointer;}
+
+  .adminItem{display:flex;align-items:center;gap:8px;padding:11px 4px;border-bottom:1px solid var(--border);}
+  .adminItem:last-child{border-bottom:none;}
+  .adminItem .mark{font-size:20px;width:28px;text-align:center;}
+  .adminItem .meta{flex:1;min-width:0;}
+  .adminItem .meta .n{font-size:13.5px;font-weight:700;}
+  .adminItem .meta .s{font-size:11px;color:var(--sub);}
+  .adminItem .ops{display:flex;gap:4px;flex-shrink:0;}
+  .adminItem .ops button{border:none;background:#f0f3f8;width:28px;height:28px;border-radius:8px;font-size:12px;cursor:pointer;color:#555;}
+  .adminItem .ops button.del{background:#fdecea;color:#e2453c;}
+  .resetBtn{width:100%;padding:11px;border:1px solid #f1c3c0;border-radius:12px;background:#fff5f4;color:#e2453c;font-weight:700;font-size:13px;cursor:pointer;}
+  .logoutAdminBtn{width:100%;padding:10px;border:none;background:none;color:var(--sub);font-size:12.5px;cursor:pointer;text-decoration:underline;}
+
+  /* -------- Calendar -------- */
+  .calHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;}
+  .calHeader .monthTitle{font-size:16px;font-weight:800;flex:1;text-align:center;}
+  .calHeader .navBtns{display:flex;gap:6px;align-items:center;}
+  .calHeader button{border:none;background:var(--card);width:32px;height:32px;border-radius:10px;font-size:15px;cursor:pointer;box-shadow:0 1px 3px rgba(30,60,110,.08);color:#3a4a5c;flex-shrink:0;}
+  .calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+  .calWeekday{text-align:center;font-size:11px;color:var(--sub);font-weight:700;padding-bottom:5px;}
+  .calWeekday.sun{color:#e2453c;}
+  .calWeekday.sat{color:#3B82F6;}
+  .calCell{background:var(--card);border-radius:10px;min-height:66px;padding:4px 3px;box-shadow:0 1px 3px rgba(30,60,110,.05);}
+  .calCell.blank{background:transparent;box-shadow:none;}
+  .calCell.today{outline:2px solid var(--main);outline-offset:-2px;}
+  .calCell .dnum{font-size:11px;font-weight:700;text-align:center;color:#3a4a5c;}
+  .calCell.holiday .dnum{color:#e2453c;}
+  .calCell .hname{font-size:7.5px;color:#e2453c;text-align:center;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .calCell .chips{display:flex;flex-direction:column;gap:2px;margin-top:3px;}
+  .chip{background:#EFF6FF;color:var(--main-dark);border-radius:6px;padding:1px 2px;font-size:8px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .calLegend{display:flex;gap:14px;justify-content:center;margin-top:16px;font-size:11px;color:var(--sub);}
+  .calLegend span{display:flex;align-items:center;gap:4px;}
+
+  #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(30,30,30,.9);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:300;opacity:0;pointer-events:none;transition:opacity .25s;}
+  #toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button id="backBtn" style="display:none;">←</button>
+    <h1 id="headerTitle">パパチェッカー</h1>
+    <div class="headerBtns">
+      <button id="navCalendar">📅</button>
+      <button id="navAdmin">管理者</button>
+      <button id="navKid">ぼく用</button>
+    </div>
+  </header>
+
+  <!-- ホーム -->
+  <div class="view active" id="view-home">
+    <div class="progressCard">
+      <div class="ring" id="progressRing" style="--pct:0;">
+        <div class="ringInner">
+          <div class="num" id="progressPct">0%</div>
+          <div class="frac" id="progressFrac">0 / 0</div>
+        </div>
+      </div>
+      <div class="label">きょうのがんばり</div>
+    </div>
+    <div class="listTitle">チェック項目</div>
+    <div id="homeList"><div class="emptyNote">まだ項目がありません</div></div>
+  </div>
+
+  <!-- ぼく用 -->
+  <div class="view" id="view-kid">
+    <div class="kidTopNote">できたら指でボタンを長押ししてね！</div>
+    <div id="kidList"><div class="emptyNote">まだ項目がありません</div></div>
+  </div>
+
+  <!-- カレンダー -->
+  <div class="view" id="view-calendar">
+    <div class="calHeader">
+      <button id="calPrevBtn">‹</button>
+      <div class="monthTitle" id="calMonthTitle">-</div>
+      <div class="navBtns">
+        <button id="calReloadBtn" title="更新">⟳</button>
+        <button id="calNextBtn">›</button>
+      </div>
+    </div>
+    <div class="calGrid" id="calWeekdaysRow"></div>
+    <div class="calGrid" id="calGrid" style="margin-top:5px;"></div>
+    <div class="calLegend"><span>🔴 祝日</span><span>🔵 きょう</span><span>💬 やったこと</span></div>
+  </div>
+
+  <!-- 管理者 -->
+  <div class="view" id="view-admin">
+    <div id="adminLoginBox">
+      <div class="lockIcon">🔒</div>
+      <p>あんしょう番号を入力してください</p>
+      <input type="password" id="adminPassInput" inputmode="numeric" maxlength="4" placeholder="••••">
+      <button id="adminPassBtn">入る</button>
+      <div id="adminLoginError"></div>
+    </div>
+    <div id="adminPanel" style="display:none;">
+      <div class="adminSection">
+        <h3>項目をついか</h3>
+        <div class="formRow"><label>名前</label><input type="text" id="newItemName" placeholder="例）はみがき"></div>
+        <div class="formGrid">
+          <div class="formRow"><label>チェックのマーク</label><input type="text" id="newItemMark" maxlength="4" placeholder="⭕"></div>
+          <div class="formRow"><label>長押しの秒数</label><input type="number" id="newItemHold" min="1" max="30" value="3"></div>
+        </div>
+        <button class="primary" id="addItemBtn">ついかする</button>
+      </div>
+      <div class="adminSection">
+        <h3>項目いちらん</h3>
+        <div id="adminItemsList"><div class="emptyNote">まだ項目がありません</div></div>
+      </div>
+      <div class="adminSection">
+        <h3>リセット</h3>
+        <button class="resetBtn" id="resetAllBtn">ぜんぶの完了をリセットする</button>
+      </div>
+      <button class="logoutAdminBtn" id="adminLogoutBtn">管理者をおわる</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
+  onSnapshot, query, orderBy, where, serverTimestamp, writeBatch, getDocs
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA1IorPVEe2AYNFBL20nfQPMDcVU3wbDbI",
+  authDomain: "papa-check.firebaseapp.com",
+  projectId: "papa-check",
+  storageBucket: "papa-check.firebasestorage.app",
+  messagingSenderId: "756790364914",
+  appId: "1:756790364914:web:424464e0b9243fcc35de6b"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const ADMIN_PASSWORD = "0326";
+const $ = id => document.getElementById(id);
+let items = [];
+let adminUnlocked = false;
+let holdTimer = null, holdRAF = null;
+let historyMap = {};
+let holidaysMap = {};
+let currentCalMonth = new Date();
+
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1600);
+}
+function esc(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------------- Nav ---------------- */
+function showView(v){
+  document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
+  $("view-"+v).classList.add("active");
+  document.querySelectorAll(".headerBtns button").forEach(b=>b.classList.remove("on"));
+  $("backBtn").style.display = v === "home" ? "none" : "flex";
+  if(v === "admin"){ $("navAdmin").classList.add("on"); $("headerTitle").textContent = "管理者画面"; }
+  else if(v === "kid"){ $("navKid").classList.add("on"); $("headerTitle").textContent = "ぼく用"; }
+  else if(v === "calendar"){ $("navCalendar").classList.add("on"); $("headerTitle").textContent = "カレンダー"; renderCalendar(); }
+  else { $("headerTitle").textContent = "パパチェッカー"; }
+}
+$("navKid").addEventListener("click", () => showView("kid"));
+$("navCalendar").addEventListener("click", () => showView("calendar"));
+$("navAdmin").addEventListener("click", () => {
+  showView("admin");
+  if(adminUnlocked){ $("adminLoginBox").style.display="none"; $("adminPanel").style.display="block"; }
+  else { $("adminLoginBox").style.display="flex"; $("adminPanel").style.display="none"; $("adminPassInput").value=""; $("adminLoginError").textContent=""; }
+});
+$("backBtn").addEventListener("click", () => showView("home"));
+
+/* ---------------- Admin login ---------------- */
+$("adminPassBtn").addEventListener("click", tryAdminLogin);
+$("adminPassInput").addEventListener("keydown", e => { if(e.key==="Enter") tryAdminLogin(); });
+function tryAdminLogin(){
+  if($("adminPassInput").value === ADMIN_PASSWORD){
+    adminUnlocked = true;
+    $("adminLoginBox").style.display = "none";
+    $("adminPanel").style.display = "block";
+    $("adminLoginError").textContent = "";
+  } else {
+    $("adminLoginError").textContent = "ちがうよ、もう一度";
+  }
+}
+$("adminLogoutBtn").addEventListener("click", () => {
+  adminUnlocked = false;
+  showView("home");
+});
+
+/* ---------------- Firestore sync ---------------- */
+function subscribeItems(){
+  const q = query(collection(db,"papacheck_items"), orderBy("order","asc"));
+  onSnapshot(q, snap => {
+    items = [];
+    snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+    renderHome();
+    renderKid();
+    renderAdminList();
+  });
+}
+
+/* ---------------- Home ---------------- */
+function renderHome(){
+  const total = items.length;
+  const done = items.filter(i => i.checked).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  $("progressRing").style.setProperty("--pct", pct);
+  $("progressPct").textContent = pct + "%";
+  $("progressFrac").textContent = done + " / " + total;
+
+  const list = $("homeList");
+  if(!items.length){ list.innerHTML = '<div class="emptyNote">まだ項目がありません（管理者画面でついかしてね）</div>'; return; }
+  list.innerHTML = "";
+  items.forEach(it => {
+    const row = document.createElement("div");
+    row.className = "itemRow" + (it.checked ? " done" : "");
+    row.innerHTML = `<div class="mark">${esc(it.mark||"⭕")}</div><div class="iname">${esc(it.name)}</div><div class="stateTxt">${it.checked ? "できた！" : "まだ"}</div>`;
+    list.appendChild(row);
+  });
+}
+
+/* ---------------- Kid view (hold to check) ---------------- */
+function renderKid(){
+  const list = $("kidList");
+  if(!items.length){ list.innerHTML = '<div class="emptyNote">まだ項目がありません</div>'; return; }
+  list.innerHTML = "";
+  items.forEach(it => {
+    const card = document.createElement("div");
+    card.className = "holdCard" + (it.checked ? " done" : "");
+    card.innerHTML = `<div class="fill"></div>
+      <div class="row">
+        <div class="mark">${esc(it.mark||"⭕")}</div>
+        <div class="info"><div class="iname">${esc(it.name)}</div><div class="hint">${it.checked ? "できたよ！（長押しでもどす）" : (it.holdSeconds||3) + "秒 長押ししてね"}</div></div>
+        <div class="checkBadge">✔</div>
+      </div>`;
+    attachHold(card, it);
+    list.appendChild(card);
+  });
+}
+function attachHold(card, it){
+  const fill = card.querySelector(".fill");
+  const durationMs = (it.holdSeconds || 3) * 1000;
+  let startTime = null;
+  const cancel = () => {
+    if(holdRAF) cancelAnimationFrame(holdRAF);
+    holdRAF = null; startTime = null;
+    fill.style.width = "0%";
+  };
+  const step = (ts) => {
+    if(!startTime) startTime = ts;
+    const elapsed = ts - startTime;
+    const pct = Math.min(100, elapsed / durationMs * 100);
+    fill.style.width = pct + "%";
+    if(pct >= 100){
+      cancel();
+      toggleCheck(it);
+      if(navigator.vibrate) navigator.vibrate(60);
+      return;
+    }
+    holdRAF = requestAnimationFrame(step);
+  };
+  const start = (e) => { e.preventDefault(); cancel(); holdRAF = requestAnimationFrame(step); };
+  card.addEventListener("pointerdown", start);
+  card.addEventListener("pointerup", cancel);
+  card.addEventListener("pointerleave", cancel);
+  card.addEventListener("pointercancel", cancel);
+}
+function todayStr(d){
+  d = d || new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+async function toggleCheck(it){
+  const newChecked = !it.checked;
+  await updateDoc(doc(db,"papacheck_items", it.id), { checked: newChecked, checkedAt: serverTimestamp() });
+  const dateStr = todayStr();
+  try{
+    if(newChecked){
+      const q = query(collection(db,"papacheck_history"), where("itemId","==",it.id), where("dateStr","==",dateStr));
+      const snap = await getDocs(q);
+      if(snap.empty){
+        await addDoc(collection(db,"papacheck_history"), { itemId: it.id, name: it.name, mark: it.mark||"⭕", dateStr, ts: serverTimestamp() });
+      }
+    } else {
+      const q = query(collection(db,"papacheck_history"), where("itemId","==",it.id), where("dateStr","==",dateStr));
+      const snap = await getDocs(q);
+      if(!snap.empty){
+        const batch = writeBatch(db);
+        snap.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+    }
+  }catch(err){ /* 履歴の記録に失敗してもチェック自体は反映済み */ }
+  toast(newChecked ? (it.name + "できた！🎉") : (it.name + "をもどしたよ"));
+}
+
+/* ---------------- Admin: item management ---------------- */
+$("addItemBtn").addEventListener("click", async () => {
+  const name = $("newItemName").value.trim();
+  const mark = $("newItemMark").value.trim() || "⭕";
+  const hold = Math.max(1, parseInt($("newItemHold").value) || 3);
+  if(!name){ toast("名前を入力してね"); return; }
+  const maxOrder = items.reduce((m,i)=>Math.max(m, i.order||0), 0);
+  await addDoc(collection(db,"papacheck_items"), {
+    name, mark, holdSeconds: hold, checked: false, order: maxOrder + 1, createdAt: serverTimestamp()
+  });
+  $("newItemName").value = ""; $("newItemMark").value = ""; $("newItemHold").value = 3;
+  toast("項目をついかしたよ");
+});
+
+function renderAdminList(){
+  const list = $("adminItemsList");
+  if(!items.length){ list.innerHTML = '<div class="emptyNote">まだ項目がありません</div>'; return; }
+  list.innerHTML = "";
+  items.forEach((it, idx) => {
+    const row = document.createElement("div");
+    row.className = "adminItem";
+    row.innerHTML = `<div class="mark">${esc(it.mark||"⭕")}</div>
+      <div class="meta"><div class="n">${esc(it.name)}</div><div class="s">長押し${it.holdSeconds||3}秒・${it.checked?"完了":"未完了"}</div></div>
+      <div class="ops">
+        <button class="up" ${idx===0?"disabled":""}>↑</button>
+        <button class="down" ${idx===items.length-1?"disabled":""}>↓</button>
+        <button class="edit">✎</button>
+        <button class="del">✕</button>
+      </div>`;
+    row.querySelector(".up").addEventListener("click", () => swapOrder(idx, idx-1));
+    row.querySelector(".down").addEventListener("click", () => swapOrder(idx, idx+1));
+    row.querySelector(".edit").addEventListener("click", () => editItem(it));
+    row.querySelector(".del").addEventListener("click", () => deleteItem(it));
+    list.appendChild(row);
+  });
+}
+async function swapOrder(a, b){
+  if(b<0 || b>=items.length) return;
+  const itemA = items[a], itemB = items[b];
+  const orderA = itemA.order, orderB = itemB.order;
+  await updateDoc(doc(db,"papacheck_items", itemA.id), { order: orderB });
+  await updateDoc(doc(db,"papacheck_items", itemB.id), { order: orderA });
+}
+async function editItem(it){
+  const name = prompt("名前", it.name); if(name===null) return;
+  const mark = prompt("チェックのマーク", it.mark||"⭕"); if(mark===null) return;
+  const holdStr = prompt("長押しの秒数", String(it.holdSeconds||3)); if(holdStr===null) return;
+  const hold = Math.max(1, parseInt(holdStr) || 3);
+  await updateDoc(doc(db,"papacheck_items", it.id), { name: name.trim()||it.name, mark: mark.trim()||"⭕", holdSeconds: hold });
+  toast("こうしんしたよ");
+}
+async function deleteItem(it){
+  if(!confirm(it.name + " を削除しますか？")) return;
+  await deleteDoc(doc(db,"papacheck_items", it.id));
+}
+$("resetAllBtn").addEventListener("click", async () => {
+  if(!confirm("すべての項目を「未完了」に戻します。よろしいですか？")) return;
+  const batch = writeBatch(db);
+  const snap = await getDocs(collection(db,"papacheck_items"));
+  snap.forEach(d => batch.update(d.ref, { checked: false }));
+  await batch.commit();
+  toast("リセットしたよ");
+});
+
+/* ---------------- Calendar ---------------- */
+function subscribeHistory(){
+  const q = query(collection(db,"papacheck_history"), orderBy("dateStr","asc"));
+  onSnapshot(q, snap => {
+    historyMap = {};
+    snap.forEach(d => {
+      const h = d.data();
+      if(!historyMap[h.dateStr]) historyMap[h.dateStr] = [];
+      historyMap[h.dateStr].push({ name: h.name, mark: h.mark });
+    });
+    renderCalendar();
+  });
+}
+async function fetchHolidays(){
+  try{
+    const res = await fetch("https://holidays-jp.github.io/api/v1/date.json");
+    holidaysMap = await res.json();
+  }catch(err){ /* 祝日を取得できなくてもカレンダー自体は使える */ }
+  renderCalendar();
+}
+const WEEKDAY_NAMES = ["日","月","火","水","木","金","土"];
+function renderWeekdaysRow(){
+  const row = $("calWeekdaysRow");
+  row.innerHTML = "";
+  WEEKDAY_NAMES.forEach((w, i) => {
+    const el = document.createElement("div");
+    el.className = "calWeekday" + (i===0?" sun":i===6?" sat":"");
+    el.textContent = w;
+    row.appendChild(el);
+  });
+}
+function renderCalendar(){
+  if(!$("view-calendar").classList.contains("active")) return;
+  const year = currentCalMonth.getFullYear(), month = currentCalMonth.getMonth();
+  $("calMonthTitle").textContent = year + "年" + (month+1) + "月";
+  renderWeekdaysRow();
+  const grid = $("calGrid");
+  grid.innerHTML = "";
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const startWeekday = firstDay.getDay();
+  const todayS = todayStr();
+  for(let i=0;i<startWeekday;i++){
+    const blank = document.createElement("div"); blank.className = "calCell blank";
+    grid.appendChild(blank);
+  }
+  for(let day=1; day<=daysInMonth; day++){
+    const dateStr = year + "-" + String(month+1).padStart(2,"0") + "-" + String(day).padStart(2,"0");
+    const holidayName = holidaysMap[dateStr];
+    const chips = historyMap[dateStr] || [];
+    const cell = document.createElement("div");
+    cell.className = "calCell" + (holidayName ? " holiday" : "") + (dateStr===todayS ? " today" : "");
+    cell.innerHTML = `<div class="dnum">${day}</div>` +
+      (holidayName ? `<div class="hname">${esc(holidayName)}</div>` : "") +
+      `<div class="chips">${chips.map(c=>`<span class="chip">${esc(c.mark)}${esc(c.name)}</span>`).join("")}</div>`;
+    grid.appendChild(cell);
+  }
+}
+$("calPrevBtn").addEventListener("click", () => { currentCalMonth = new Date(currentCalMonth.getFullYear(), currentCalMonth.getMonth()-1, 1); renderCalendar(); });
+$("calNextBtn").addEventListener("click", () => { currentCalMonth = new Date(currentCalMonth.getFullYear(), currentCalMonth.getMonth()+1, 1); renderCalendar(); });
+$("calReloadBtn").addEventListener("click", async () => {
+  toast("更新中…");
+  await fetchHolidays();
+  toast("更新したよ");
+});
+
+/* ---------------- init ---------------- */
+subscribeItems();
+subscribeHistory();
+fetchHolidays();
+</script>
+</body>
+</html>
